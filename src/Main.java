@@ -31,10 +31,24 @@ public class Main {
         for ( int i=0; i<6; i++)
             tree2.insert(keys2[i], values2[i]);
 
-//        ExtendedAVLTree.print(tree1);
-//        ExtendedAVLTree.print(tree2);
-//        ExtendedAVLTree.print(ExtendedAVLTree.clone(tree1));
-//        ExtendedAVLTree.print(ExtendedAVLTree.clone(tree2));
+//        AVLTree<Integer, String> tree3=new AVLTree<>();
+//
+//        tree3.insert(1, "fred");
+//        tree3.insert(2, "fred");
+//        tree3.insert(23, "fred");
+//        AVLTree<Integer, String> tree4 = ExtendedAVLTree.clone(tree3);
+//        tree3.insert(30, "bean");
+//        tree3.insert(40, "boom");
+//        tree3.remove(tree3.find(1));
+////        tree3.remove(tree1.find(1));
+//        ExtendedAVLTree.print(tree3);
+//        ExtendedAVLTree.print(tree4);
+//        tree4.remove(tree4.find(2));
+
+        ExtendedAVLTree.print(tree1);
+        ExtendedAVLTree.print(tree2);
+        ExtendedAVLTree.print(ExtendedAVLTree.clone(tree1));
+        ExtendedAVLTree.print(ExtendedAVLTree.clone(tree2));
 //
         ExtendedAVLTree.print(ExtendedAVLTree.merge(ExtendedAVLTree.clone(tree1),
                 ExtendedAVLTree.clone(tree2)));

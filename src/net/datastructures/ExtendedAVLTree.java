@@ -2,47 +2,9 @@ package net.datastructures;
 
 import javax.swing.*;
 import java.awt.*;
-import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Comparator;
 
-
-class TestPanel<K, V> extends JPanel {
-
-    private AVLTree<K,V> t;
-
-    TestPanel(AVLTree<K, V> tree) {
-        super();
-        t = tree;
-    }
-    public void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        layout(t, t.root(), 10, 10, g);
-    }
-
-    private int layout (AVLTree<K, V> t, Position<Entry<K, V>> p, int d, int x, Graphics g) {
-        if (t.hasLeft(p)) {
-            x = layout(t, t.left(p), d + 30, x, g);
-        }
-        x += 30;
-        if (t.isInternal(p)) {
-            g.drawOval(x, d, 20, 20);
-        }
-        if (t.isExternal(p)) {
-            g.drawRect(x + 5, d, 10, 10);
-        }
-        if (t.hasRight(p)) {
-            x = layout(t, t.right(p), d + 30, x, g);
-        }
-        return x;
-    }
-
-
-    public void draw(Graphics g) {
-        Color c = new Color((int) (Math.random() * 255), (int) (Math.random() * 255), (int) (Math.random() * 255));
-        g.setColor(c);
-        g.fillRect((int) (Math.random() * 400), (int) (Math.random() * 300), (int) (Math.random() * 40), (int) (Math.random() * 40));
-    }
-}
 
 /**
  * Created by shane on 17/09/2016.
@@ -50,27 +12,15 @@ class TestPanel<K, V> extends JPanel {
 public class ExtendedAVLTree<K, V> extends AVLTree<K, V> {
 
     /**
-     * Creates a new window and prints the AVL tree specified by the
-     * parameter on the new window. Each internal node is displayed by a circle containing
-     * its key and each external node is displayed by a rectangle.
-     * @param tree
-     * @param <K>
-     * @param <V>
-     */
-    public static <K, V> void print(AVLTree<K, V> tree) {
-        JFrame frame = new JFrame("FrameDemo");
-        frame.setSize(800, 600);
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.setLocationRelativeTo(null);
-        frame.add(new TestPanel<>(tree));
-        frame.setVisible(true);
-    }
-
-    /**
      * creates an identical copy of the AVL tree specified by the
      * parameter and returns a reference to the new AVL tree
      *
-     * Time complexity of this method is O(n)
+     * Does a postorder traversal of the tree, on each visit it clones the node.
+     *
+     * Total Time complexity of this method is O(n)
+     *
+     * @see postorderClone for more time complexity analysis
+     *
      * @param tree the tree to clone
      * @param <K> key
      * @param <V> value
@@ -78,47 +28,38 @@ public class ExtendedAVLTree<K, V> extends AVLTree<K, V> {
      */
     public static <K, V> AVLTree<K, V> clone(AVLTree<K, V> tree) throws InvalidPositionException {
         AVLTree<K, V> clone = new AVLTree<>();
-        clone.root = postorderClone((AVLNode<K, V>)tree.root());
+        clone.root = postorderClone(tree, tree.root());
+        clone.numEntries = tree.numEntries;
+        clone.size = tree.size;
         return clone;
-    }
-
-    /**
-     *
-     * @param v
-     */
-    private static <K, V> AVLNode<K, V> postorderClone(AVLNode<K, V> v) {
-
-        AVLNode<K, V> left = null;
-        AVLNode<K, V> right = null;
-        if (v.getLeft() != null) {
-            left = postorderClone((AVLNode<K, V>) v.getLeft());
-        }
-        if (v.getRight() != null) {
-            right = postorderClone((AVLNode<K, V>) v.getRight());
-        }
-
-        AVLNode<K, V> clonedNode = copy(v);
-        if (left != null) {
-            clonedNode.setLeft(left);
-            left.setParent(clonedNode);
-        }
-        if (right != null) {
-            clonedNode.setRight(right);
-            right.setParent(clonedNode);
-        }
-
-        return clonedNode;
     }
 
     /**
      * Merges two AVL trees, tree1 and tree2, into a new tree.
      *
      * Assumes that both trees have the same type of key K
-     * @param tree1
-     * @param tree2
-     * @param <K>
-     * @param <V>
-     * @return
+     *
+     * There are three significant parts to this method:
+     * Build a sorted list from a tree O(n)
+     * @see inorderNodes
+     *
+     * Merge two sorted lists together O(n+m)
+     * @see mergeLists
+     *
+     * Construct a new tree from the merged list O(n+m)
+     * @see constructFromSortedArray
+     *
+     * Total complexity:
+     * Construct a sorted array A of all the entries in tree1: O(n)
+     * Construct a sorted array B of all the entries in tree2: O(m)
+     * Merge two sorted arrays into one sorted array: O(n+m)
+     * Construct an avl tree of all the entries in C: O(n+m)
+     *
+     * The total time complexity is O(n) + O(m) + O(m+n) + O(m+n) = O(m+n)
+     *
+     * @param tree1 first tree to merge
+     * @param tree2 second tree to merge
+     * @return AVLTree
      */
     public static <K, V> AVLTree<K, V> merge(AVLTree<K,V> tree1,
                                              AVLTree<K,V> tree2 ) {
@@ -127,104 +68,206 @@ public class ExtendedAVLTree<K, V> extends AVLTree<K, V> {
 
         inorderNodes((AVLNode<K, V>) tree1.root(), list1);
         inorderNodes((AVLNode<K, V>) tree2.root(), list2);
-        Position<Entry<K, V>>[] merged = merge(list1, list2, tree1.C);
+        ArrayList<Position<Entry<K, V>>> merged = mergeLists(list1, list2, tree1.C);
 
         AVLTree<K, V> mergedTree = new AVLTree<>();
-        mergedTree.root = new AVLNode<>();
-        constructFromSortedArray(merged, 0, merged.length - 1);
+        mergedTree.root = constructFromSortedArray(merged, 0, merged.size() - 1);
+        mergedTree.numEntries = tree1.numEntries + tree2.numEntries;
+        mergedTree.size = tree1.size + tree2.size;
+
         return mergedTree;
     }
 
     /**
-     * Creates an inorder list of non-terminal nodes
-     * @param v node
-     * @param nodes list
-     * @throws InvalidPositionException
+     * Creates a new window and prints the AVL tree specified by the
+     * parameter on the new window. Each internal node is displayed by a circle containing
+     * its key and each external node is displayed by a rectangle.
+     *
+     * Does an inorder traversal to visit all the nodes to do the drawing O(n)
+     *
+     * @see AVLTreePanel
+     *
+     * @param tree the tree to display
      */
-    private static <K, V> void inorderNodes(AVLNode<K, V> v, NodePositionList<AVLNode<K, V>> nodes) {
-        if (v.getLeft() != null) {
-            inorderNodes((AVLNode<K, V>) v.getLeft(), nodes);  // recurse on left child
-        }
-        if (v.element() != null) {
-            nodes.addLast(v);
-        }
-        if (v.getRight() != null) {
-            inorderNodes((AVLNode<K, V>) v.getRight(), nodes); // recurse on right child
-        }
+    public static <K, V> void print(AVLTree<K, V> tree) {
+        JFrame frame = new JFrame("AVLTree Demo");
+        frame.setSize(1400, 600);
+        frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        frame.setLocationRelativeTo(null);
+        frame.add(new AVLTreePanel<>(tree));
+        frame.setVisible(true);
     }
 
     /**
+     * Clones a tree at a given position using a postorder traversal
      *
-     * @param merged
-     * @param start
-     * @param end
-     * @param <K>
-     * @param <V>
-     * @return
+     * The non-recursive part:
+     *  - copies an existing position in the tree O(1)
+     *  - links the copy to it's children O(1)
+     *  - sets the height O(1)
+     *
+     * The recursive part: O(n)
+     *  - visits every left child once
+     *  - visits every right child once
+     *
+     * Total time complexity O(n)
+     *
+     *  To clone an entire tree the call should be postorderClone(tree, tree.root())
+     *
+     * @param tree the tree to clone
+     * @param p the position to clone
+     * @return AVLNode
      */
-    private static <K, V> AVLNode<K, V> constructFromSortedArray(Position<Entry<K, V>>[] merged, int start, int end) {
-        int length = end - start;
-        if (length == 0) {
+    private static <K, V> AVLNode<K, V> postorderClone(AVLTree<K, V> tree, Position<Entry<K, V>> p) {
+
+        AVLNode<K, V> left = null;
+        AVLNode<K, V> right = null;
+        if (tree.hasLeft(p)) {
+            left = postorderClone(tree, tree.left(p));
+        }
+        if (tree.hasRight(p)) {
+            right = postorderClone(tree, tree.right(p));
+        }
+        AVLNode<K, V> clonedNode = copy(p);
+        if (left != null) {
+            clonedNode.setLeft(left);
+            left.setParent(clonedNode);
+        }
+        if (right != null) {
+            clonedNode.setRight(right);
+            right.setParent(clonedNode);
+        }
+        if (left != null || right != null) {
+            tree.setHeight(clonedNode);
+        }
+        return clonedNode;
+    }
+
+    /**
+     * Constructs and returns an AVLNode, that can be used as the root of an AVLTree, from a sorted ArrayList.
+     *
+     * The non recursive part:
+     *  - create a new node from the middle of the array passed in O(1)
+     *  - link child and parent nodes together O(1)
+     *
+     * The recursive part: O(n)
+     *  - divides the array by half and then recursively calls itself on each half until
+     *    the array is divided into single elements O(n)
+     *
+     * Total time complexity O(n)
+     *
+     * @param sortedArray the array to build the node from
+     * @param start starting position
+     * @param end ending position
+     * @return AVLNode
+     */
+    private static <K, V> AVLNode<K, V> constructFromSortedArray(
+            ArrayList<Position<Entry<K, V>>> sortedArray,
+            int start,
+            int end)
+    {
+        if (start > end) {
             return null;
-        } else if (length == 1) {
-            AVLNode<K, V> v = (AVLNode<K, V>) merged[start];
-            return copy(v);
         } else {
-            int middle = length/2;
-            AVLNode<K, V> left = null;
-            AVLNode<K, V> right = null;
-            AVLNode<K, V> v = (AVLNode<K, V>) merged[middle];
-            AVLNode<K, V> node = copy(v);
-            if ((middle - 1) > 0) {
-                left = constructFromSortedArray(merged, 0, middle - 1);
+            int middle = (start + end)/2;
+            AVLNode<K, V> node = copy(sortedArray.get(middle));
+            AVLNode<K, V> leftTerminal = new AVLNode<>();
+            leftTerminal.setParent(node);
+            AVLNode<K, V> rightTerminal = new AVLNode<>();
+            rightTerminal.setParent(node);
+            node.setHeight(1);
+            node.setLeft(leftTerminal);
+            node.setRight(rightTerminal);
+
+            AVLNode<K, V> left = constructFromSortedArray(sortedArray, start, middle - 1);
+            if (left != null) {
                 node.setLeft(left);
                 left.setParent(node);
+                node.setHeight(Math.max(left.getHeight() + 1, node.getHeight()));
             }
-            if (((middle + 1) - end) > 0) {
-                right = constructFromSortedArray(merged, middle + 1, end - 1);
+
+            AVLNode<K, V> right = constructFromSortedArray(sortedArray, middle + 1, end);
+            if (right != null) {
                 node.setRight(right);
                 right.setParent(node);
+                node.setHeight(Math.max(right.getHeight() + 1, node.getHeight()));
             }
+
             return node;
         }
     }
 
     /**
-     * Merges two sorted NodePositionList and returns a sorted array Position<Entry<K, V>>[].
+     * Creates an inorder list of internal nodes
+     * Inorder traversal O(n) - assuming the visit is O(1) which it is - The visit checks the element and calls addLast
+     * which are both O(1)
      *
-     * @see Sort::merge based on this method
+     * @param v node
+     * @param nodes list
+     */
+    private static <K, V> void inorderNodes(AVLNode<K, V> v, NodePositionList<AVLNode<K, V>> nodes) {
+        if (v.getLeft() != null) {
+            inorderNodes((AVLNode<K, V>) v.getLeft(), nodes);
+        }
+        if (v.element() != null) {
+            nodes.addLast(v);
+        }
+        if (v.getRight() != null) {
+            inorderNodes((AVLNode<K, V>) v.getRight(), nodes);
+        }
+    }
+
+
+    /**
+     * Merges two sorted NodePositionList and returns a sorted ArrayList.
+     *
+     * Time complexity analysis:
+     *
+     * significant method calls:
+     *  - merged.add() in general it is 'amortized constant time' but since we set the capacity on construction O(1)
+     *
+     * 3 Consectutive Loops:
+     *  1) Loops until either a or b is empty O(m+n)
+     *  2) Loops until a is empty O(m)
+     *  3) Loops until b is empty O(n)
+     *
+     * Total time complexity is O(m) + O(n) + O(m+n) = O(m+n)
+     *
+     * @see net.datastructures.Sort::merge based on this method
      **/
-    private static <K, V> Position<Entry<K, V>>[] merge(NodePositionList<AVLNode<K, V>> a,
+    private static <K, V> ArrayList<Position<Entry<K, V>>> mergeLists(NodePositionList<AVLNode<K, V>> a,
                                                         NodePositionList<AVLNode<K, V>> b,
                                                         Comparator<K> c)
     {
         int totalSize = a.size() + b.size();
-        Position<Entry<K, V>>[] merged = (Position<Entry<K, V>>[]) Array.newInstance(Position.class, totalSize);
-        int index = 0;
+        ArrayList<Position<Entry<K, V>>> merged = new ArrayList<>(totalSize);
         while (!a.isEmpty() && !b.isEmpty()) {
             if (c.compare(a.first().element().element().getKey(), b.first().element().element().getKey()) <= 0) {
-                merged[index] = a.remove(a.first());
+                merged.add(a.remove(a.first()));
             } else {
-                merged[index] = b.remove(b.first());
+                merged.add(b.remove(b.first()));
             }
-            ++index;
         }
 
         while(!a.isEmpty()) {
-            merged[index] = a.remove(a.first());
-            ++index;
+            merged.add(a.remove(a.first()));
         }
 
         while(!b.isEmpty()) {
-            merged[index] = b.remove(b.first());
-            ++index;
+            merged.add(b.remove(b.first()));
         }
         return merged;
     }
 
-    private static <K, V> AVLNode<K, V> copy(AVLNode<K, V> v) {
+    /**
+     * Creates a new AVLNode from a position
+     * All calls are primitive hence the Big O is O(1)
+     * @param p position to copy
+     * @return AVLNode
+     */
+    private static <K, V> AVLNode<K, V> copy(Position<Entry<K, V>> p) {
         AVLNode<K, V> node = new AVLNode<>();
-        Entry<K, V> e = v.element();
+        Entry<K, V> e = p.element();
         if (e != null) {
             K key = e.getKey();
             V value = e.getValue();
@@ -232,8 +275,59 @@ public class ExtendedAVLTree<K, V> extends AVLTree<K, V> {
             ((BSTEntry<K,V>) newEntry).pos = node;
             node.setElement(newEntry);
         }
-        node.setHeight(v.getHeight());
         return node;
     }
 
+}
+
+/**
+ * Draws a component that represents the AVLTree that is passed in during construction
+ */
+class AVLTreePanel<K, V> extends JPanel {
+
+    private static final int SPACE_BETWEEN = 40;
+    private static final int INTERNAL_WIDTH = SPACE_BETWEEN;
+    private static final int EXTERNAL_WIDTH = SPACE_BETWEEN/4;
+    private AVLTree<K,V> t;
+
+    AVLTreePanel(AVLTree<K, V> tree) {
+        super();
+        t = tree;
+    }
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        layout(t, t.root(), 10, 10, g);
+    }
+
+    /**
+     * Draws the tree by traversing the tree inorder and drawing each node each visit
+     *
+     * O(n) - assuming all draw operations are constant time
+     *
+     * @param tree tree to draw
+     * @param p position
+     * @param y height
+     * @param x width
+     * @param g graphics
+     * @return the next x coordinate
+     */
+    private int layout (AVLTree<K, V> tree, Position<Entry<K, V>> p, int y, int x, Graphics g) {
+
+        if (tree.hasLeft(p)) {
+            x = layout(tree, tree.left(p), y + SPACE_BETWEEN, x, g);
+        }
+        x += SPACE_BETWEEN;
+        if (tree.isInternal(p)) {
+            g.drawString(p.element().getKey().toString(), x, y + (INTERNAL_WIDTH/2));
+            g.drawOval(x - (INTERNAL_WIDTH/4), y, INTERNAL_WIDTH, INTERNAL_WIDTH);
+            // g.drawString(String.valueOf(tree.height(p)), x, y);
+        }
+        if (tree.isExternal(p)) {
+            g.drawRect(x + EXTERNAL_WIDTH/2, y, EXTERNAL_WIDTH, EXTERNAL_WIDTH);
+        }
+        if (tree.hasRight(p)) {
+            x = layout(tree, tree.right(p), y + SPACE_BETWEEN, x, g);
+        }
+        return x;
+    }
 }
